@@ -145,7 +145,7 @@ TEST_CASE("reverse polarity inverts the wet signal") {
         e->SetDepth(1.0f);
         e->SetFeedback(0.3f);
     }
-    reversed.SetReversePolarity(true);
+    reversed.ToggleReversePolarity();
 
     StereoFrame outN{0.f, 0.f}, outR{0.f, 0.f};
     for (int i = 0; i < 50; i++)
@@ -175,7 +175,7 @@ TEST_CASE("reverse polarity leaves the dry signal untouched") {
         e->SetDepth(1.0f);
         e->SetFeedback(0.3f);
     }
-    reversed.SetReversePolarity(true);
+    reversed.ToggleReversePolarity();
 
     StereoFrame in{0.f, 0.f}, outN{0.f, 0.f}, outR{0.f, 0.f};
     for (int i = 0; i < 50; i++)
@@ -222,7 +222,7 @@ TEST_CASE("freeze halts the modulation sweep") {
         moving.Process({x, x});
     }
 
-    frozen.SetFreeze(true);
+    frozen.ToggleFreeze();
 
     // Continue warming up so the feedback transient settles into a
     // steady periodic response to the repeating test signal.
@@ -249,4 +249,50 @@ TEST_CASE("freeze halts the modulation sweep") {
     // repeats; a moving LFO keeps sweeping the offset, so it does not.
     CHECK(frozenA == doctest::Approx(frozenB).epsilon(kEps));
     CHECK(movingA != doctest::Approx(movingB).epsilon(kEps));
+}
+
+TEST_CASE("freeze and reverse default to off") {
+    ModulationEngine engine;
+    engine.Init(48000.f);
+    CHECK(engine.IsFrozen()   == false);
+    CHECK(engine.IsReversed() == false);
+}
+
+TEST_CASE("ToggleFreeze flips state on each call") {
+    ModulationEngine engine;
+    engine.Init(48000.f);
+
+    engine.ToggleFreeze();
+    CHECK(engine.IsFrozen() == true);
+
+    engine.ToggleFreeze();
+    CHECK(engine.IsFrozen() == false);
+}
+
+TEST_CASE("ToggleReversePolarity flips state on each call") {
+    ModulationEngine engine;
+    engine.Init(48000.f);
+
+    engine.ToggleReversePolarity();
+    CHECK(engine.IsReversed() == true);
+
+    engine.ToggleReversePolarity();
+    CHECK(engine.IsReversed() == false);
+}
+
+TEST_CASE("toggling freeze does not affect reverse, and vice versa") {
+    ModulationEngine engine;
+    engine.Init(48000.f);
+
+    engine.ToggleFreeze();
+    CHECK(engine.IsFrozen()   == true);
+    CHECK(engine.IsReversed() == false);
+
+    engine.ToggleReversePolarity();
+    CHECK(engine.IsFrozen()   == true);
+    CHECK(engine.IsReversed() == true);
+
+    engine.ToggleFreeze();
+    CHECK(engine.IsFrozen()   == false);
+    CHECK(engine.IsReversed() == true);
 }

@@ -59,15 +59,15 @@ void ModulationEngine::SetWidth(float width01)
     UpdateRates();
 }
 
-void ModulationEngine::SetFreeze(bool freeze)
+void ModulationEngine::ToggleFreeze()
 {
-    freeze_ = freeze;
+    freeze_ = !freeze_;
     UpdateRates();
 }
 
-void ModulationEngine::SetReversePolarity(bool reversed)
+void ModulationEngine::ToggleReversePolarity()
 {
-    reverse_ = reversed;
+    reverse_ = !reverse_;
 }
 
 void ModulationEngine::UpdateRates()
