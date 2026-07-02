@@ -11,11 +11,11 @@ build/
 *.d
 
 # Host test artifacts
-tests/doctest.h
-tests/test_modulation
-tests/test_blend_colour
-tests/test_colour
-tests/test_audio
+**/tests/doctest.h
+**/tests/test_modulation
+**/tests/test_blend_colour
+**/tests/test_colour
+**/tests/test_audio
 
 # macOS
 .DS_Store
