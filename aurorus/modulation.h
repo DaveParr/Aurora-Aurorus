@@ -65,8 +65,10 @@ class ModulationEngine
     daisysp::Chorus  chorus_;
     daisysp::Flanger flangerL_;
     daisysp::Flanger flangerR_;
-    daisysp::Phaser  phaserL_;
-    daisysp::Phaser  phaserR_;
+
+    static constexpr int kPhaserPoles = 4;
+    daisysp::PhaserEngine phaserL_[kPhaserPoles];
+    daisysp::PhaserEngine phaserR_[kPhaserPoles];
 
     MorphWeights weights_ = {1.f, 0.f, 0.f};
     float        rate01_  = 0.f;

@@ -5,8 +5,11 @@ void ModulationEngine::Init(float sample_rate)
     chorus_.Init(sample_rate);
     flangerL_.Init(sample_rate);
     flangerR_.Init(sample_rate);
-    phaserL_.Init(sample_rate);
-    phaserR_.Init(sample_rate);
+    for (int i = 0; i < kPhaserPoles; i++)
+    {
+        phaserL_[i].Init(sample_rate);
+        phaserR_[i].Init(sample_rate);
+    }
 }
 
 void ModulationEngine::SetMorph(float morph01)
@@ -25,8 +28,11 @@ void ModulationEngine::SetDepth(float depth01)
     chorus_.SetLfoDepth(depth01);
     flangerL_.SetLfoDepth(depth01);
     flangerR_.SetLfoDepth(depth01);
-    phaserL_.SetLfoDepth(depth01);
-    phaserR_.SetLfoDepth(depth01);
+    for (int i = 0; i < kPhaserPoles; i++)
+    {
+        phaserL_[i].SetLfoDepth(depth01);
+        phaserR_[i].SetLfoDepth(depth01);
+    }
 }
 
 void ModulationEngine::SetFeedback(float fb01)
@@ -35,8 +41,11 @@ void ModulationEngine::SetFeedback(float fb01)
     chorus_.SetFeedback(fb);
     flangerL_.SetFeedback(fb);
     flangerR_.SetFeedback(fb);
-    phaserL_.SetFeedback(fb);
-    phaserR_.SetFeedback(fb);
+    for (int i = 0; i < kPhaserPoles; i++)
+    {
+        phaserL_[i].SetFeedback(fb);
+        phaserR_[i].SetFeedback(fb);
+    }
 }
 
 void ModulationEngine::SetMix(float mix01)
@@ -70,8 +79,11 @@ void ModulationEngine::UpdateRates()
     chorus_.SetLfoFreq(freqL, freqR);
     flangerL_.SetLfoFreq(freqL);
     flangerR_.SetLfoFreq(freqR);
-    phaserL_.SetLfoFreq(freqL);
-    phaserR_.SetLfoFreq(freqR);
+    for (int i = 0; i < kPhaserPoles; i++)
+    {
+        phaserL_[i].SetLfoFreq(freqL);
+        phaserR_[i].SetLfoFreq(freqR);
+    }
 }
 
 StereoFrame ModulationEngine::Process(StereoFrame in)
@@ -85,8 +97,12 @@ StereoFrame ModulationEngine::Process(StereoFrame in)
     float flangerL = flangerL_.Process(in.left);
     float flangerR = flangerR_.Process(in.right);
 
-    float phaserL = phaserL_.Process(in.left);
-    float phaserR = phaserR_.Process(in.right);
+    float phaserL = 0.f, phaserR = 0.f;
+    for (int i = 0; i < kPhaserPoles; i++)
+    {
+        phaserL += phaserL_[i].Process(in.left);
+        phaserR += phaserR_[i].Process(in.right);
+    }
 
     float wetL = weights_.chorus * chorusL + weights_.flanger * flangerL + weights_.phaser * phaserL;
     float wetR = weights_.chorus * chorusR + weights_.flanger * flangerR + weights_.phaser * phaserR;
