@@ -14,6 +14,7 @@ build/
 **/tests/doctest.h
 **/tests/test_modulation
 **/tests/test_blend_colour
+**/tests/test_led_breath
 **/tests/test_colour
 **/tests/test_audio
 
