@@ -827,13 +827,16 @@ TEST_CASE("reverse polarity leaves the dry signal untouched") {
     CHECK(outR.left != doctest::Approx(outN.left).epsilon(kEps)); // wet still audibly differs
 }
 
-TEST_CASE("freeze halts the modulation sweep at its current phase") {
-    // Freezing immediately after Init (phase still at its default 0)
-    // can't distinguish "hold the current phase" from a buggy "reset
-    // phase to 0" implementation - both look identical from t=0. Run
-    // both engines un-frozen through a pre-warmup first so the LFO
-    // moves to a non-default phase, THEN engage freeze, so a reset-to-0
-    // bug would diverge from the correct hold-in-place behavior.
+TEST_CASE("freeze halts the modulation sweep") {
+    // Proves freeze stops the sweep from a non-trivial running state -
+    // the realistic regression to guard against. This does NOT prove the
+    // held phase equals the exact pre-freeze phase (a hypothetical
+    // "reset phase to 0, then freeze" bug would also produce a frozen,
+    // self-repeating output and pass this test); it only shows the
+    // output stops progressing once frozen. Freezing immediately after
+    // Init would be a strictly weaker test than even this, since the
+    // phase is already at its default 0 - the pre-warmup at least
+    // confirms freeze works mid-sweep, not just at t=0.
     ModulationEngine frozen, moving;
     for (ModulationEngine *e : {&frozen, &moving})
     {
