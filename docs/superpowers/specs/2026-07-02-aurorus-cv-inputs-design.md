@@ -5,7 +5,9 @@
 
 ## Overview
 
-Wire five of `aurorus`'s six knob-controlled parameters (rate, depth, feedback, mix, stereo width) to their corresponding CV inputs, so each can be modulated by an external CV source in addition to the front-panel knob. `KNOB_WARP` (morph position) stays knob-only.
+Wire all six of `aurorus`'s knob-controlled parameters (morph, rate, depth, feedback, mix, stereo width) to their corresponding CV inputs, so each can be modulated by an external CV source in addition to the front-panel knob.
+
+**Revision (2026-07-02, after hardware testing):** the original version of this spec left `KNOB_WARP`/`CV_WARP` knob-only, because the SDK calibrates `CV_WARP` differently from the other five (see Hardware Context below). After testing the first version on real hardware, the CV_WARP jack was expected to modulate morph the same way the other five CVs modulate their knobs. This revision wires it in too, accepting the calibration quirk as a minor, cosmetic imperfection rather than a blocker — see the note in Hardware Context.
 
 ---
 
@@ -24,7 +26,9 @@ enum ControlCVs   { CV_ATMOSPHERE, CV_TIME, CV_MIX, CV_REFLECT, CV_BLUR, CV_WARP
 
 > gets calibrated offset-adjusted CV Value from the hardware... (except for warp which is v/oct calibrated)... when returning warp CV from this function it will be with no calibrated offset, and is identical to reading from the AnalogControl itself.
 
-The SDK also exposes a dedicated `hw.GetWarpVoct()`, returning a MIDI note number (-60 to 60) from a -5V to 5V input — clearly intended for 1V/octave pitch tracking, not a linear 0-1 position offset. Since `KNOB_WARP` drives `aurorus`'s morph position (a linear sweep, not a pitch), neither `GetWarpVoct()` nor the uncalibrated `GetCvValue(CV_WARP)` is a good fit, so `CV_WARP` is left unused.
+The SDK also exposes a dedicated `hw.GetWarpVoct()`, returning a MIDI note number (-60 to 60) from a -5V to 5V input — clearly intended for 1V/octave pitch tracking, not a linear 0-1 position offset. Since `KNOB_WARP` drives `aurorus`'s morph position (a linear sweep, not a pitch), `GetWarpVoct()` is not used.
+
+**Decision (revised):** `GetCvValue(CV_WARP)` — the uncalibrated raw value — is used anyway, with the same `clamp(knob + cv, 0, 1)` idiom as the other five. Skipping the offset calibration means an unpatched `CV_WARP` jack may read a small nonzero DC value instead of exactly 0 (the other five CVs are calibrated to read ~0 when unpatched). In practice this is a minor, cosmetic imperfection: the same as countless uncalibrated Eurorack CV inputs elsewhere, correctable by ear (nudge the Warp knob slightly to recenter) rather than a functional defect.
 
 ### Precedent: Aurora-Morse
 
@@ -41,12 +45,14 @@ This is the additive-offset-with-clamp idiom `aurorus` adopts: the knob sets a c
 
 ## Behavior
 
-For each of the five wired parameters: `final = clamp(knob01 + cv, 0, 1)`.
+For each of the six wired parameters: `final = clamp(knob01 + cv, 0, 1)`.
 
 - The knob sets the center; CV swings the parameter around it.
 - No attenuverting, no headroom scaling, no jack-presence detection (the SDK exposes none). This matches Aurora-Morse's existing behavior exactly, and standard behavior for a plain, non-attenuverting Eurorack CV input generally.
 - Turning the knob toward the center (0.5) gives CV more room to swing before clipping at 0 or 1; turning it toward an extreme leaves less room in that direction. This is expected, standard modular-synth behavior, not a defect to design around.
-- With nothing patched into a CV jack, the calibrated offset-correction means `GetCvValue` reads ~0, so the parameter behaves exactly as it does today (knob-only).
+- For the five non-Warp CVs, with nothing patched into a CV jack, the calibrated offset-correction means `GetCvValue` reads ~0, so the parameter behaves exactly as it does today (knob-only). `CV_WARP` is uncalibrated (see Hardware Context) so an unpatched jack may carry a small nonzero offset instead of exactly 0.
+
+**Warp's LED indicator tracks the combined (post-CV) value, not just the knob.** `aurorus`'s LEDs already show a blended colour driven by the Warp value (`blendColour(hw.GetKnobValue(KNOB_WARP))` in the existing code). Now that `KNOB_WARP` can be pushed by CV, the LED must use the same `clamp(knob + cv, 0, 1)` value the audio engine uses — otherwise the LED would show only the knob position while CV silently pushes the actual morph further, making the "mood indicator" LED misleading. Both `engine.SetMorph(...)` (in `AudioCallback`, audio-rate) and `blendColour(...)` (in the main LED loop, a separate, slower loop) independently compute `Clamp01(hw.GetKnobValue(KNOB_WARP) + hw.GetCvValue(CV_WARP))` — matching the existing architecture where both loops already independently re-read `hw.GetKnobValue(KNOB_WARP)` rather than sharing cached state across the audio/main-loop boundary.
 
 ---
 
@@ -59,7 +65,7 @@ For each of the five wired parameters: `final = clamp(knob01 + cv, 0, 1)`.
 | `KNOB_REFLECT` | `CV_REFLECT` | `SetFeedback` | Feedback |
 | `KNOB_MIX` | `CV_MIX` | `SetMix` | Wet/dry mix |
 | `KNOB_ATMOSPHERE` | `CV_ATMOSPHERE` | `SetWidth` | Stereo width |
-| `KNOB_WARP` | — (unused) | `SetMorph` | Morph position |
+| `KNOB_WARP` | `CV_WARP` | `SetMorph` (and `blendColour` for the LED) | Morph position |
 
 ---
 
@@ -67,7 +73,7 @@ For each of the five wired parameters: `final = clamp(knob01 + cv, 0, 1)`.
 
 ```
 aurorus/modulation.h    # + Clamp01(float) -> float, pure, host-tested
-aurorus/main.cpp        # AudioCallback: 5 of 6 SetX(...) calls gain "+ hw.GetCvValue(CV_X)", wrapped in Clamp01
+aurorus/main.cpp        # AudioCallback + LED loop: all 6 SetX(...)/blendColour(...) calls gain "+ hw.GetCvValue(CV_X)", wrapped in Clamp01
 aurorus/tests/test_modulation.cpp  # + Clamp01 test cases
 README.md               # CV Inputs table updated
 ```
@@ -87,9 +93,10 @@ A small, pure, hardware-free function alongside the module's existing pure helpe
 
 ### `main.cpp` changes
 
-In `AudioCallback`, five of the six `engine.SetX(hw.GetKnobValue(KNOB_X))` calls become:
+In `AudioCallback`, all six `engine.SetX(hw.GetKnobValue(KNOB_X))` calls become:
 
 ```cpp
+engine.SetMorph(Clamp01(hw.GetKnobValue(KNOB_WARP) + hw.GetCvValue(CV_WARP)));
 engine.SetRate(Clamp01(hw.GetKnobValue(KNOB_TIME) + hw.GetCvValue(CV_TIME)));
 engine.SetDepth(Clamp01(hw.GetKnobValue(KNOB_BLUR) + hw.GetCvValue(CV_BLUR)));
 engine.SetFeedback(Clamp01(hw.GetKnobValue(KNOB_REFLECT) + hw.GetCvValue(CV_REFLECT)));
@@ -97,9 +104,13 @@ engine.SetMix(Clamp01(hw.GetKnobValue(KNOB_MIX) + hw.GetCvValue(CV_MIX)));
 engine.SetWidth(Clamp01(hw.GetKnobValue(KNOB_ATMOSPHERE) + hw.GetCvValue(CV_ATMOSPHERE)));
 ```
 
-`engine.SetMorph(hw.GetKnobValue(KNOB_WARP));` is unchanged.
+In the main LED loop, `blendColour(hw.GetKnobValue(KNOB_WARP))` becomes:
 
-`main.cpp` remains untested wiring, matching the project's existing convention — the only new testable logic is `Clamp01` itself.
+```cpp
+Rgb c = blendColour(Clamp01(hw.GetKnobValue(KNOB_WARP) + hw.GetCvValue(CV_WARP)));
+```
+
+`main.cpp` remains untested wiring, matching the project's existing convention — the only new testable logic is `Clamp01` itself (already added and tested).
 
 ---
 
@@ -121,15 +132,7 @@ No changes to `ModulationEngine`'s public interface or any existing test — `Cl
 
 ## Documentation
 
-`README.md`'s "CV Inputs" table changes from:
-
-```markdown
-| Input | Function |
-|-------|----------|
-| Warp, Time, Blur, Reflect, Mix, Atmosphere | Unused |
-```
-
-to:
+`README.md`'s "CV Inputs" table currently (after the first version of this feature) reads:
 
 ```markdown
 | Input | Function |
@@ -142,6 +145,19 @@ to:
 | Warp | Unused — CV_WARP is calibrated for 1V/oct pitch tracking on this hardware, not a plain offset, so it doesn't fit a morph-position parameter |
 ```
 
+It changes to:
+
+```markdown
+| Input | Function |
+|-------|----------|
+| Warp | Added to the Warp knob (morph position); the LED blend colour also reflects the combined value |
+| Time | Added to the Time knob (rate) |
+| Blur | Added to the Blur knob (depth) |
+| Reflect | Added to the Reflect knob (feedback) |
+| Mix | Added to the Mix knob (wet/dry) |
+| Atmosphere | Added to the Atmosphere knob (stereo width) |
+```
+
 The "Freeze and Reverse gate inputs are also unused" line is unchanged — this feature doesn't touch gates.
 
 ---
@@ -150,5 +166,6 @@ The "Freeze and Reverse gate inputs are also unused" line is unchanged — this 
 
 - Attenuverting or scaling CV amount (no free knob exists to drive one, and it wasn't requested)
 - Jack-presence detection / CV-override mode (no SDK support exists for this)
-- `CV_WARP` / `GetWarpVoct()` usage
+- `GetWarpVoct()` usage (the SDK's V/oct-calibrated accessor for `CV_WARP` — the uncalibrated `GetCvValue(CV_WARP)` is used instead, per the revised decision above)
+- Correcting `CV_WARP`'s uncalibrated offset in firmware (accepted as a minor, cosmetic imperfection rather than solved with custom calibration logic)
 - Gate inputs (`GATE_FREEZE`, `GATE_REVERSE`) — unchanged, still unused
