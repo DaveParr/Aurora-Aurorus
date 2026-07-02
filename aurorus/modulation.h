@@ -10,16 +10,16 @@ inline MorphWeights ComputeMorphWeights(float morph01)
     if (morph01 <= 0.5f)
     {
         float t   = morph01 / 0.5f;
-        w.chorus  = 1.f - t;
-        w.flanger = t;
+        w.chorus  = std::sqrt(1.f - t);
+        w.flanger = std::sqrt(t);
         w.phaser  = 0.f;
     }
     else
     {
         float t   = (morph01 - 0.5f) / 0.5f;
         w.chorus  = 0.f;
-        w.flanger = 1.f - t;
-        w.phaser  = t;
+        w.flanger = std::sqrt(1.f - t);
+        w.phaser  = std::sqrt(t);
     }
     return w;
 }

@@ -25,10 +25,14 @@ TEST_CASE("morph weights at phaser anchor (1.0)") {
     CHECK(w.phaser  == doctest::Approx(1.0f).epsilon(kEps));
 }
 
-TEST_CASE("morph weights sum to 1 across the full sweep") {
+TEST_CASE("morph weights preserve equal power across the full sweep") {
+    // Equal-power (square-root) crossfade: the sum of the SQUARES of the
+    // two active weights is 1, not their linear sum (which peaks above 1
+    // at the midpoint of each zone - that's what avoids the volume dip).
     for (float m = 0.0f; m <= 1.0f; m += 0.05f) {
         MorphWeights w = ComputeMorphWeights(m);
-        CHECK(w.chorus + w.flanger + w.phaser == doctest::Approx(1.0f).epsilon(kEps));
+        float sumOfSquares = w.chorus * w.chorus + w.flanger * w.flanger + w.phaser * w.phaser;
+        CHECK(sumOfSquares == doctest::Approx(1.0f).epsilon(kEps));
         CHECK(w.chorus  >= 0.0f);
         CHECK(w.flanger >= 0.0f);
         CHECK(w.phaser  >= 0.0f);
