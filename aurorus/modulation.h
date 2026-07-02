@@ -45,6 +45,13 @@ inline float MapFeedback01(float fb01)
     return fb01 * kMaxFeedback;
 }
 
+inline float Clamp01(float x)
+{
+    if (x < 0.f) return 0.f;
+    if (x > 1.f) return 1.f;
+    return x;
+}
+
 class ModulationEngine
 {
   public:

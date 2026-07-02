@@ -250,3 +250,23 @@ TEST_CASE("freeze halts the modulation sweep") {
     CHECK(frozenA == doctest::Approx(frozenB).epsilon(kEps));
     CHECK(movingA != doctest::Approx(movingB).epsilon(kEps));
 }
+
+TEST_CASE("Clamp01 - clamps below zero") {
+    CHECK(Clamp01(-0.3f) == doctest::Approx(0.0f).epsilon(kEps));
+}
+
+TEST_CASE("Clamp01 - clamps above one") {
+    CHECK(Clamp01(1.4f) == doctest::Approx(1.0f).epsilon(kEps));
+}
+
+TEST_CASE("Clamp01 - passes through an in-range value unchanged") {
+    CHECK(Clamp01(0.6f) == doctest::Approx(0.6f).epsilon(kEps));
+}
+
+TEST_CASE("Clamp01 - exact lower boundary") {
+    CHECK(Clamp01(0.0f) == doctest::Approx(0.0f).epsilon(kEps));
+}
+
+TEST_CASE("Clamp01 - exact upper boundary") {
+    CHECK(Clamp01(1.0f) == doctest::Approx(1.0f).epsilon(kEps));
+}
