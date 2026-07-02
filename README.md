@@ -11,7 +11,7 @@ Aurorus turns the Aurora into a single continuously-morphing modulation effect. 
 - **Stereo width** — detunes the left/right modulation rate against each other so the effect blooms into stereo instead of collapsing to mono
 - **Freeze** — holds the current modulation phase in place while held, for a static, frozen texture
 - **Reverse polarity** — inverts the wet signal, the classic hardware flanger "through-zero" switch, most audible with feedback dialed up
-- **LED mood indicator** — all LEDs show one blended colour (blue → green → magenta) reflecting where you are in the morph
+- **LED mood indicator** — all LEDs show one blended colour (blue → green → magenta) reflecting where you are in the morph, breathing in brightness at the modulation rate and depth
 
 ## Download
 
@@ -64,7 +64,7 @@ Holding Freeze stops the sweep instantly, wherever it currently sits. Holding Re
 
 | LED | Behaviour |
 |-----|-----------|
-| Arc (1–6) | All six show the same blended colour, tracking the Warp position: blue at full chorus, green at full flanger, magenta at full phaser, blending smoothly in between. |
-| Bottom LEDs | Mirror the same blend colour as the arc LEDs. |
+| Arc (1–6) | All six show the same blended colour, tracking the Warp position: blue at full chorus, green at full flanger, magenta at full phaser, blending smoothly in between. Brightness breathes at the Time rate; Blur sets how deep the breath swings — 0 is rock steady, fully up dips to near-black at the bottom of each breath. |
+| Bottom LEDs | Mirror the same blend colour and breathing as the arc LEDs. |
 | Freeze LED | Lights solid white while Freeze is held. |
-| Reverse LED | Lights solid white while Reverse is held. |
+| Reverse LED | Lights solid white while Reverse is held; holding Freeze also holds the breath in place. |

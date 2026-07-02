@@ -6,10 +6,13 @@
  *  rate, depth, feedback, wet/dry mix, and stereo width.
  *  SW_FREEZE holds the current modulation phase.
  *  SW_REVERSE inverts the wet signal polarity.
+ *  The LEDs breathe at KNOB_TIME's rate, with KNOB_BLUR setting how deep
+ *  the pulse swings; SW_FREEZE holds the breath too.
  */
 #include "aurora.h"
 #include "modulation.h"
 #include "blend_colour.h"
+#include "led_breath.h"
 
 using namespace daisy;
 using namespace aurora;
@@ -47,11 +50,25 @@ int main(void)
     const Leds numberedLeds[6] = { LED_1, LED_2, LED_3, LED_4, LED_5, LED_6 };
     const Leds bottomLeds[3]   = { LED_BOT_1, LED_BOT_2, LED_BOT_3 };
 
+    float breath_phase = 0.f;
+
     while (1)
     {
         hw.ClearLeds();
 
+        float rate01  = hw.GetKnobValue(KNOB_TIME);
+        float depth01 = hw.GetKnobValue(KNOB_BLUR);
+        bool  frozen  = hw.GetButton(SW_FREEZE).Pressed();
+
+        if (!frozen)
+            breath_phase = AdvancePhase(breath_phase, rate01, kLedUpdateIntervalMs / 1000.f);
+
+        float brightness = BreathBrightness(breath_phase, depth01);
+
         Rgb c = blendColour(hw.GetKnobValue(KNOB_WARP));
+        c.r *= brightness;
+        c.g *= brightness;
+        c.b *= brightness;
 
         for (int i = 0; i < 6; i++)
             hw.SetLed(numberedLeds[i], c.r, c.g, c.b);
@@ -59,12 +76,14 @@ int main(void)
         for (int i = 0; i < 3; i++)
             hw.SetLed(bottomLeds[i], c.r, c.g, c.b);
 
-        if (hw.GetButton(SW_FREEZE).Pressed())
+        if (frozen)
             hw.SetLed(LED_FREEZE, 1.f, 1.f, 1.f);
 
         if (hw.GetButton(SW_REVERSE).Pressed())
             hw.SetLed(LED_REVERSE, 1.f, 1.f, 1.f);
 
         hw.WriteLeds();
+
+        System::Delay(static_cast<uint32_t>(kLedUpdateIntervalMs));
     }
 }
