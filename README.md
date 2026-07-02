@@ -1,122 +1,70 @@
-# Aurora Firmware Template
+# Aurorus
 
-A minimal, ready-to-fork starting point for writing your own firmware for the [Qu-Bit Aurora](https://www.qubitelectronix.com/shop/aurora) eurorack module.
+Morphing chorus/flanger/phaser firmware for the [Qu-Bit Aurora](https://www.qubitelectronix.com/shop/aurora) Eurorack module.
 
-## What's included
+## Features
 
-| Path | Purpose |
-|------|---------|
-| `aurorus/` | Morphing chorus/flanger/phaser modulation effect |
-| `lib/Aurora-SDK` | Git submodule — Aurora BSP, libDaisy, DaisySP |
-| `config.mk` | Shared toolchain and SDK path config |
-| `Makefile` | Top-level `build` / `flash` / `libdaisy` targets |
+Aurorus turns the Aurora into a single continuously-morphing modulation effect. Turn one knob and slide smoothly from chorus, through flanger, into phaser — no switching, no discrete modes, just one knob sweeping through all three classic modulation textures.
 
-### aurorus
+- **Continuous morph** — one knob crossfades chorus → flanger → phaser using an equal-power curve, so the effect never dips in volume mid-sweep and only two textures are ever blended at once
+- **Shared rate, depth, feedback, and mix controls** — the same four knobs shape whichever effect (or blend) is currently active
+- **Stereo width** — detunes the left/right modulation rate against each other so the effect blooms into stereo instead of collapsing to mono
+- **Freeze** — holds the current modulation phase in place while held, for a static, frozen texture
+- **Reverse polarity** — inverts the wet signal, the classic hardware flanger "through-zero" switch, most audible with feedback dialed up
+- **LED mood indicator** — all LEDs show one blended colour (blue → green → magenta) reflecting where you are in the morph
 
-A firmware that continuously morphs between chorus, flanger, and phaser:
+## Download
 
-- `KNOB_WARP` morphs the effect character: chorus -> flanger -> phaser
-- `KNOB_TIME` sets the LFO rate, `KNOB_BLUR` sets LFO depth, `KNOB_REFLECT` sets feedback
-- `KNOB_MIX` sets the wet/dry balance, `KNOB_ATMOSPHERE` sets stereo width
-- `SW_FREEZE` holds the current modulation phase in place while held
-- `SW_REVERSE` inverts the wet signal's polarity while held (classic "through-zero" flanger switch)
-- All LEDs show a single blended colour reflecting the current morph position (blue = chorus, green = flanger, magenta = phaser)
+Pre-built firmware is available on the [Releases page](https://github.com/DaveParr/Aurora-Aurorus/releases).
 
-The `aurorus/tests/` directory has host-side unit tests for `modulation.h`/`.cpp` and `blend_colour.h`, built and run with plain `g++` and [doctest](https://github.com/doctest/doctest) — including the real DaisySP `Chorus`/`Flanger`/`Phaser` sources compiled directly for the host, not a mock.
+1. Download `aurorus.bin` from the latest release
+2. Copy it to the root of a FAT32 USB drive (it must be the only `.bin` file there)
+3. Insert the USB drive into the Aurora module
+4. Power up the module with the drive inserted — the bootloader loads the firmware automatically
+5. Power down and remove the drive; check `daisy_boot_log.txt` on the drive to confirm a successful flash
 
-## Getting started
+## Controls and Behaviour
 
-### 1. Create your repository from this template
+### Knobs
 
-**Option A — GitHub UI:** Click **"Use this template"** → **"Create a new repository"** on the repo page. Give it a name and finish the wizard. GitHub creates the remote repository; nothing is cloned yet.
+| Knob | Function |
+|------|----------|
+| Warp | Morph position — fully CCW is chorus, noon is flanger, fully CW is phaser. Sweeps continuously; only two adjacent effects are ever blended at once. |
+| Time | Modulation rate — sweeps exponentially from 0.05 Hz to 5 Hz |
+| Blur | Modulation depth |
+| Reflect | Feedback amount, capped at 90% for stability |
+| Mix | Wet/dry balance |
+| Atmosphere | Stereo width — detunes the left/right modulation rate up to 2% apart |
 
-**Option B — GitHub CLI:**
+### Buttons
 
-```sh
-gh repo create YOUR_REPO --template OWNER/aurora --public --clone=false
-```
+| Button | Function |
+|--------|----------|
+| Freeze | Hold to stop the modulation sweep exactly where it is — no click, no jump, it resumes from the same point on release |
+| Reverse | Hold to invert the wet signal's polarity (the classic through-zero flanger character), most audible with Reflect turned up |
+| Shift | Unused |
 
-Once the remote exists, clone it **with submodules**:
+### CV Inputs
 
-```sh
-git clone --recurse-submodules https://github.com/YOUR_USERNAME/YOUR_REPO.git
-cd YOUR_REPO
-```
+| Input | Function |
+|-------|----------|
+| Warp, Time, Blur, Reflect, Mix, Atmosphere | Unused |
 
-If you forgot `--recurse-submodules`:
+The Freeze and Reverse gate inputs are also unused — both controls are front-panel/button only.
 
-```sh
-git submodule update --init --recursive
-```
+### Audio
 
-A suggested name convention would be 'Aurora-*'.
+Aurorus is a single audio effect that continuously morphs between chorus, flanger, and phaser. The Warp knob drives a two-zone equal-power crossfade — chorus fades into flanger over the first half of its travel, then flanger fades into phaser over the second half — so only two effects are ever blended at once and the perceived volume stays constant through the sweep.
 
-### 2. Install the ARM toolchain
+Time, Blur, Reflect, and Mix apply identically to whichever effect(s) are currently active. Atmosphere widens the stereo image by detuning the left and right modulation rates against each other, rather than by panning.
 
-The build uses `gcc-arm-none-eabi`. The default path in `config.mk` is:
+Holding Freeze stops the sweep instantly, wherever it currently sits. Holding Reverse flips the wet signal's polarity before it's mixed back with the dry signal — with Reflect turned up, this noticeably shifts the notch/peak character of the effect.
 
-```
-~/.local/share/gcc-arm-none-eabi/gcc-arm-none-eabi-10-2020-q4-major/bin
-```
+### LEDs
 
-You can install the toolchain there, or override the path at build time:
-
-```sh
-make build PROJECT=aurorus GCC_PATH=/path/to/your/arm-gcc/bin
-```
-
-The [Aurora-SDK README](lib/Aurora-SDK/README.md) has OS-specific toolchain installation instructions for Windows, macOS, and Linux.
-
-### 3. Build libDaisy (one-time)
-
-```sh
-make libdaisy
-```
-
-This compiles the libDaisy static library from source inside the submodule. Only needed once, or after updating the submodule.
-
-
-
-### 4. Run the unit tests
-
-The tests compile and run on your host machine (no hardware needed):
-
-```sh
-cd aurorus/tests
-make
-```
-
-### 5. Build and flash aurorus
-
-```sh
-# Build
-make build PROJECT=aurorus
-
-# Copy .bin to USB drive (adjust MOUNT to where your USB drive is mounted)
-make flash PROJECT=aurorus MOUNT=/media/YOUR_USER/YOUR_DRIVE
-```
-
-Then:
-1. Eject the USB drive from your computer
-2. Insert it into the Aurora module
-3. Power up the Aurora with the USB drive inserted — the bootloader loads the firmware at boot
-
-**Verify it loaded:** power down, re-insert the USB drive into your computer, and check `daisy_boot_log.txt`. The newest entry should read:
-
-```
-N. Successfully flashed file "aurorus.bin" to address 0x90040000
-```
-
-If the entry is missing or shows an error, check that `aurorus.bin` is the only `.bin` file in the root of the drive.
-
-## Starting your own project
-
-From there the world is yours! Start writing code and show us what you got!
-
-## Hardware reference
-
-See [context.md](context.md) for notes on physical LED positions, knob layout, button names, and bottom-LED hardware constraints that aren't obvious from the SDK headers.
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+| LED | Behaviour |
+|-----|-----------|
+| Arc (1–6) | All six show the same blended colour, tracking the Warp position: blue at full chorus, green at full flanger, magenta at full phaser, blending smoothly in between. |
+| Bottom LEDs | Mirror the same blend colour as the arc LEDs. |
+| Freeze LED | Lights solid white while Freeze is held. |
+| Reverse LED | Lights solid white while Reverse is held. |
