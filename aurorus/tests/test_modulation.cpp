@@ -158,7 +158,48 @@ TEST_CASE("reverse polarity inverts the wet signal") {
     CHECK(outR.left == doctest::Approx(-outN.left).epsilon(kEps));
 }
 
-TEST_CASE("freeze halts the modulation sweep") {
+TEST_CASE("reverse polarity leaves the dry signal untouched") {
+    // A fully-wet mix can't distinguish "invert wet only" from "invert
+    // everything" (dry contributes nothing either way). Use a partial mix
+    // so both are present, then verify algebraically: with reverse
+    // flipping only the wet term, outNormal = dry + wet and
+    // outReversed = dry - wet, so (outNormal + outReversed) / 2 == dry
+    // exactly, regardless of what wet is.
+    ModulationEngine normal, reversed;
+    for (ModulationEngine *e : {&normal, &reversed})
+    {
+        e->Init(48000.f);
+        e->SetMorph(1.0f); // pure phaser - single active effect
+        e->SetMix(0.3f);   // partial mix - both dry and wet contribute
+        e->SetRate(0.5f);
+        e->SetDepth(1.0f);
+        e->SetFeedback(0.3f);
+    }
+    reversed.SetReversePolarity(true);
+
+    StereoFrame in{0.f, 0.f}, outN{0.f, 0.f}, outR{0.f, 0.f};
+    for (int i = 0; i < 50; i++)
+    {
+        float x = TestSignal(i);
+        in   = {x, x};
+        outN = normal.Process(in);
+        outR = reversed.Process(in);
+    }
+
+    float dryGain    = std::cos(0.3f * 1.57079632679f);
+    float expectedDry = dryGain * in.left;
+
+    CHECK((outN.left + outR.left) / 2.f == doctest::Approx(expectedDry).epsilon(kEps));
+    CHECK(outR.left != doctest::Approx(outN.left).epsilon(kEps)); // wet still audibly differs
+}
+
+TEST_CASE("freeze halts the modulation sweep at its current phase") {
+    // Freezing immediately after Init (phase still at its default 0)
+    // can't distinguish "hold the current phase" from a buggy "reset
+    // phase to 0" implementation - both look identical from t=0. Run
+    // both engines un-frozen through a pre-warmup first so the LFO
+    // moves to a non-default phase, THEN engage freeze, so a reset-to-0
+    // bug would diverge from the correct hold-in-place behavior.
     ModulationEngine frozen, moving;
     for (ModulationEngine *e : {&frozen, &moving})
     {
@@ -169,12 +210,21 @@ TEST_CASE("freeze halts the modulation sweep") {
         e->SetDepth(1.0f);
         e->SetFeedback(0.2f);
     }
+
+    const int kPreWarmup = 10000;
+    for (int i = 0; i < kPreWarmup; i++)
+    {
+        float x = TestSignal(i);
+        frozen.Process({x, x});
+        moving.Process({x, x});
+    }
+
     frozen.SetFreeze(true);
 
-    // Warm up long enough for the feedback transient to settle into a
+    // Continue warming up so the feedback transient settles into a
     // steady periodic response to the repeating test signal.
-    const int kWarmup = 20000;
-    for (int i = 0; i < kWarmup; i++)
+    const int kWarmup = kPreWarmup + 20000;
+    for (int i = kPreWarmup; i < kWarmup; i++)
     {
         float x = TestSignal(i);
         frozen.Process({x, x});
