@@ -13,6 +13,7 @@ struct MorphWeights { float chorus, flanger, phaser; };
 constexpr float kMinRateHz   = 0.05f;
 constexpr float kMaxRateHz   = 5.0f;
 constexpr float kMaxFeedback = 0.9f;
+constexpr float kMaxDetune   = 0.01f; // +-1% => up to 2% L/R spread at width=1
 
 inline MorphWeights ComputeMorphWeights(float morph01)
 {
@@ -54,6 +55,7 @@ class ModulationEngine
     void SetDepth(float depth01);
     void SetFeedback(float fb01);
     void SetMix(float mix01);
+    void SetWidth(float width01);
 
     StereoFrame Process(StereoFrame in);
 
@@ -67,6 +69,7 @@ class ModulationEngine
     MorphWeights weights_ = {1.f, 0.f, 0.f};
     float        rate01_  = 0.f;
     float        mix01_   = 0.f;
+    float        width01_ = 0.f;
 
     void UpdateRates();
 };

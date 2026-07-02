@@ -44,14 +44,23 @@ void ModulationEngine::SetMix(float mix01)
     mix01_ = mix01;
 }
 
+void ModulationEngine::SetWidth(float width01)
+{
+    width01_ = width01;
+    UpdateRates();
+}
+
 void ModulationEngine::UpdateRates()
 {
     float rateHz = MapRate01ToHz(rate01_);
-    chorus_.SetLfoFreq(rateHz);
-    flangerL_.SetLfoFreq(rateHz);
-    flangerR_.SetLfoFreq(rateHz);
-    phaserL_.SetLfoFreq(rateHz);
-    phaserR_.SetLfoFreq(rateHz);
+    float freqL  = rateHz * (1.f - width01_ * kMaxDetune);
+    float freqR  = rateHz * (1.f + width01_ * kMaxDetune);
+
+    chorus_.SetLfoFreq(freqL, freqR);
+    flangerL_.SetLfoFreq(freqL);
+    flangerR_.SetLfoFreq(freqR);
+    phaserL_.SetLfoFreq(freqL);
+    phaserR_.SetLfoFreq(freqR);
 }
 
 StereoFrame ModulationEngine::Process(StereoFrame in)

@@ -107,3 +107,29 @@ TEST_CASE("morph selects distinctly different effects at each anchor") {
     CHECK(c.left != doctest::Approx(f.left).epsilon(kEps));
     CHECK(f.left != doctest::Approx(p.left).epsilon(kEps));
 }
+
+TEST_CASE("width creates a stereo difference between channels") {
+    ModulationEngine narrow, wide;
+    for (ModulationEngine *e : {&narrow, &wide})
+    {
+        e->Init(48000.f);
+        e->SetMorph(0.5f); // pure flanger - channel-separable
+        e->SetMix(1.0f);
+        e->SetRate(0.8f);
+        e->SetDepth(1.0f);
+        e->SetFeedback(0.2f);
+    }
+    narrow.SetWidth(0.0f);
+    wide.SetWidth(1.0f);
+
+    StereoFrame narrowOut{0.f, 0.f}, wideOut{0.f, 0.f};
+    for (int i = 0; i < 50000; i++)
+    {
+        float x = TestSignal(i);
+        narrowOut = narrow.Process({x, x});
+        wideOut   = wide.Process({x, x});
+    }
+
+    CHECK(narrowOut.left == doctest::Approx(narrowOut.right).epsilon(kEps));
+    CHECK(wideOut.left   != doctest::Approx(wideOut.right).epsilon(kEps));
+}
