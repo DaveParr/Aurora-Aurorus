@@ -66,5 +66,5 @@ Holding Freeze stops the sweep instantly, wherever it currently sits. Holding Re
 |-----|-----------|
 | Arc (1–6) | All six show the same blended colour, tracking the Warp position: blue at full chorus, green at full flanger, magenta at full phaser, blending smoothly in between. Brightness breathes at the Time rate; Blur sets how deep the breath swings — 0 is rock steady, fully up dips to near-black at the bottom of each breath. |
 | Bottom LEDs | Mirror the same blend colour and breathing as the arc LEDs. |
-| Freeze LED | Lights solid white while Freeze is held. |
-| Reverse LED | Lights solid white while Reverse is held; holding Freeze also holds the breath in place. |
+| Freeze LED | Lights solid white while Freeze is held; holding Freeze also holds the breath in place. |
+| Reverse LED | Lights solid white while Reverse is held. |

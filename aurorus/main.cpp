@@ -60,6 +60,9 @@ int main(void)
         float depth01 = hw.GetKnobValue(KNOB_BLUR);
         bool  frozen  = hw.GetButton(SW_FREEZE).Pressed();
 
+        // dt is nominal, not measured: LED SPI writes and knob reads add a
+        // little real time on top of the Delay below, so the breath runs
+        // marginally slower than the labelled Time rate. Fine for a mood LED.
         if (!frozen)
             breath_phase = AdvancePhase(breath_phase, rate01, kLedUpdateIntervalMs / 1000.f);
 
