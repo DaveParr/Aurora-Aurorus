@@ -3,7 +3,10 @@
  *  Morphing chorus / flanger / phaser modulation effect.
  *  KNOB_WARP morphs chorus -> flanger -> phaser.
  *  KNOB_TIME, KNOB_BLUR, KNOB_REFLECT, KNOB_MIX, KNOB_ATMOSPHERE drive
- *  rate, depth, feedback, wet/dry mix, and stereo width.
+ *  rate, depth, feedback, wet/dry mix, and stereo width. Each of these
+ *  five has a matching CV input, summed with its knob and clamped to
+ *  0-1 (CV_WARP is left unused - it's SDK-calibrated for V/oct pitch
+ *  tracking, not a linear offset).
  *  SW_FREEZE holds the current modulation phase.
  *  SW_REVERSE inverts the wet signal polarity.
  */
@@ -22,11 +25,11 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     hw.ProcessAllControls();
 
     engine.SetMorph(hw.GetKnobValue(KNOB_WARP));
-    engine.SetRate(hw.GetKnobValue(KNOB_TIME));
-    engine.SetDepth(hw.GetKnobValue(KNOB_BLUR));
-    engine.SetFeedback(hw.GetKnobValue(KNOB_REFLECT));
-    engine.SetMix(hw.GetKnobValue(KNOB_MIX));
-    engine.SetWidth(hw.GetKnobValue(KNOB_ATMOSPHERE));
+    engine.SetRate(Clamp01(hw.GetKnobValue(KNOB_TIME) + hw.GetCvValue(CV_TIME)));
+    engine.SetDepth(Clamp01(hw.GetKnobValue(KNOB_BLUR) + hw.GetCvValue(CV_BLUR)));
+    engine.SetFeedback(Clamp01(hw.GetKnobValue(KNOB_REFLECT) + hw.GetCvValue(CV_REFLECT)));
+    engine.SetMix(Clamp01(hw.GetKnobValue(KNOB_MIX) + hw.GetCvValue(CV_MIX)));
+    engine.SetWidth(Clamp01(hw.GetKnobValue(KNOB_ATMOSPHERE) + hw.GetCvValue(CV_ATMOSPHERE)));
     engine.SetFreeze(hw.GetButton(SW_FREEZE).Pressed());
     engine.SetReversePolarity(hw.GetButton(SW_REVERSE).Pressed());
 

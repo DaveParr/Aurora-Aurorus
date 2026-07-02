@@ -48,9 +48,14 @@ Pre-built firmware is available on the [Releases page](https://github.com/DavePa
 
 | Input | Function |
 |-------|----------|
-| Warp, Time, Blur, Reflect, Mix, Atmosphere | Unused |
+| Time | Added to the Time knob (rate) |
+| Blur | Added to the Blur knob (depth) |
+| Reflect | Added to the Reflect knob (feedback) |
+| Mix | Added to the Mix knob (wet/dry) |
+| Atmosphere | Added to the Atmosphere knob (stereo width) |
+| Warp | Unused — CV_WARP is calibrated for 1V/oct pitch tracking on this hardware, not a plain offset, so it doesn't fit a morph-position parameter |
 
-The Freeze and Reverse gate inputs are also unused — both controls are front-panel/button only.
+Each CV input sums with its knob and clamps to the 0-1 parameter range: the knob sets the center, CV swings the parameter around it. Turning a knob toward center leaves more room for CV to swing before it clips at either end; turning it toward an extreme leaves less. The Freeze and Reverse gate inputs remain unused — both controls are front-panel/button only.
 
 ### Audio
 
