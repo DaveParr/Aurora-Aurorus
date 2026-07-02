@@ -133,3 +133,67 @@ TEST_CASE("width creates a stereo difference between channels") {
     CHECK(narrowOut.left == doctest::Approx(narrowOut.right).epsilon(kEps));
     CHECK(wideOut.left   != doctest::Approx(wideOut.right).epsilon(kEps));
 }
+
+TEST_CASE("reverse polarity inverts the wet signal") {
+    ModulationEngine normal, reversed;
+    for (ModulationEngine *e : {&normal, &reversed})
+    {
+        e->Init(48000.f);
+        e->SetMorph(1.0f); // pure phaser - single active effect
+        e->SetMix(1.0f);
+        e->SetRate(0.5f);
+        e->SetDepth(1.0f);
+        e->SetFeedback(0.3f);
+    }
+    reversed.SetReversePolarity(true);
+
+    StereoFrame outN{0.f, 0.f}, outR{0.f, 0.f};
+    for (int i = 0; i < 50; i++)
+    {
+        float x = TestSignal(i);
+        outN = normal.Process({x, x});
+        outR = reversed.Process({x, x});
+    }
+
+    CHECK(outR.left == doctest::Approx(-outN.left).epsilon(kEps));
+}
+
+TEST_CASE("freeze halts the modulation sweep") {
+    ModulationEngine frozen, moving;
+    for (ModulationEngine *e : {&frozen, &moving})
+    {
+        e->Init(48000.f);
+        e->SetMorph(0.5f); // pure flanger - simplest single active effect
+        e->SetMix(1.0f);
+        e->SetRate(0.8f);
+        e->SetDepth(1.0f);
+        e->SetFeedback(0.2f);
+    }
+    frozen.SetFreeze(true);
+
+    // Warm up long enough for the feedback transient to settle into a
+    // steady periodic response to the repeating test signal.
+    const int kWarmup = 20000;
+    for (int i = 0; i < kWarmup; i++)
+    {
+        float x = TestSignal(i);
+        frozen.Process({x, x});
+        moving.Process({x, x});
+    }
+
+    float frozenA = frozen.Process({TestSignal(kWarmup), TestSignal(kWarmup)}).left;
+    for (int i = kWarmup + 1; i < kWarmup + 20; i++)
+        frozen.Process({TestSignal(i), TestSignal(i)});
+    float frozenB = frozen.Process({TestSignal(kWarmup + 20), TestSignal(kWarmup + 20)}).left;
+
+    float movingA = moving.Process({TestSignal(kWarmup), TestSignal(kWarmup)}).left;
+    for (int i = kWarmup + 1; i < kWarmup + 20; i++)
+        moving.Process({TestSignal(i), TestSignal(i)});
+    float movingB = moving.Process({TestSignal(kWarmup + 20), TestSignal(kWarmup + 20)}).left;
+
+    // Same phase of the repeating (period-20) input, one period apart.
+    // A frozen LFO reads the delay line at a fixed offset, so the output
+    // repeats; a moving LFO keeps sweeping the offset, so it does not.
+    CHECK(frozenA == doctest::Approx(frozenB).epsilon(kEps));
+    CHECK(movingA != doctest::Approx(movingB).epsilon(kEps));
+}

@@ -56,6 +56,8 @@ class ModulationEngine
     void SetFeedback(float fb01);
     void SetMix(float mix01);
     void SetWidth(float width01);
+    void SetFreeze(bool freeze);
+    void SetReversePolarity(bool reversed);
 
     StereoFrame Process(StereoFrame in);
 
@@ -70,6 +72,8 @@ class ModulationEngine
     float        rate01_  = 0.f;
     float        mix01_   = 0.f;
     float        width01_ = 0.f;
+    bool         freeze_  = false;
+    bool         reverse_ = false;
 
     void UpdateRates();
 };

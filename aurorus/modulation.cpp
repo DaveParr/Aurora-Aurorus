@@ -50,9 +50,20 @@ void ModulationEngine::SetWidth(float width01)
     UpdateRates();
 }
 
+void ModulationEngine::SetFreeze(bool freeze)
+{
+    freeze_ = freeze;
+    UpdateRates();
+}
+
+void ModulationEngine::SetReversePolarity(bool reversed)
+{
+    reverse_ = reversed;
+}
+
 void ModulationEngine::UpdateRates()
 {
-    float rateHz = MapRate01ToHz(rate01_);
+    float rateHz = freeze_ ? 0.f : MapRate01ToHz(rate01_);
     float freqL  = rateHz * (1.f - width01_ * kMaxDetune);
     float freqR  = rateHz * (1.f + width01_ * kMaxDetune);
 
@@ -79,6 +90,12 @@ StereoFrame ModulationEngine::Process(StereoFrame in)
 
     float wetL = weights_.chorus * chorusL + weights_.flanger * flangerL + weights_.phaser * phaserL;
     float wetR = weights_.chorus * chorusR + weights_.flanger * flangerR + weights_.phaser * phaserR;
+
+    if (reverse_)
+    {
+        wetL = -wetL;
+        wetR = -wetR;
+    }
 
     float dryGain = std::cos(mix01_ * 1.57079632679f);
     float wetGain = std::sin(mix01_ * 1.57079632679f);
