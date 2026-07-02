@@ -3,13 +3,13 @@ include ../config.mk
 C_DEFS += -DFIRMWARE_VERSION=\"$(FIRMWARE_VERSION)\"
 
 # Project Name
-TARGET = hello-aurora
+TARGET = aurorus
 
 # Build Project for Daisy Bootloader
 APP_TYPE = BOOT_SRAM
 
 # Sources
-CPP_SOURCES = main.cpp
+CPP_SOURCES = main.cpp modulation.cpp
 
 # Aurora BSP header
 C_INCLUDES += -I$(AURORA_SDK_DIR)/include/
