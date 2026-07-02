@@ -18,6 +18,7 @@
 - Stereo width detune is `±1%` of rate per channel (`kMaxDetune = 0.01`), giving up to 2% L/R spread at maximum width.
 - Every new source file follows the existing repo convention: no namespaces, plain structs/free functions for pure logic (matches `hello-aurora/colour.h`/`audio.h` style).
 - The Aurora-SDK submodule (including nested `DaisySP`/`libDaisy` submodules) must be checked out for any task that touches DaisySP headers or does an ARM build: `git submodule update --init --recursive lib/Aurora-SDK`.
+- The phaser leg uses 4 manually-managed `daisysp::PhaserEngine` poles per channel (`kPhaserPoles = 4`), not DaisySP's `Phaser` wrapper class — the wrapper always allocates a fixed 8-pole array regardless of runtime `SetPoles()`, which overflows the STM32H750's 128KB DTCMRAM budget when combined with the rest of the engine. See Task 6's memory-footprint fix for the full rationale.
 
 ---
 
@@ -987,9 +988,131 @@ This task has no host unit tests — it is hardware wiring, verified by a succes
 **Files:**
 - Create: `aurorus/main.cpp`
 - Create: `aurorus/Makefile`
+- Modify: `aurorus/modulation.h`, `aurorus/modulation.cpp` (memory-footprint fix, see below)
 
 **Interfaces:**
 - Consumes: `ModulationEngine` (`Init`, `SetMorph`, `SetRate`, `SetDepth`, `SetFeedback`, `SetMix`, `SetWidth`, `SetFreeze`, `SetReversePolarity`, `Process`) from Tasks 3-5; `StereoFrame` from Task 3; `blendColour(float)`, `Rgb` from Task 2.
+
+### Memory-footprint fix (discovered at ARM build time)
+
+The first attempt at this task's ARM build failed at link time: `.bss` overflowed the STM32H750's 128KB `DTCMRAM` region by ~66KB. Measured with `sizeof()` on the host: `sizeof(daisysp::Chorus) = 19,320B`, `sizeof(daisysp::Flanger) = 3,888B`, `sizeof(daisysp::Phaser) = 77,320B`. The two `Phaser` instances (`phaserL_`, `phaserR_`) alone cost ~154,640 bytes — because DaisySP's `Phaser` wrapper class always allocates a **fixed 8-pole array internally** (`PhaserEngine engines_[8]`), regardless of the runtime pole count passed to `SetPoles()`.
+
+Two fixes were considered: placing the engine in the Daisy Seed's external SDRAM (via `DSY_SDRAM_BSS`), or reducing the phaser's pole count. SDRAM was rejected — the Aurora hardware notes (`aurora.h`) describe REV3 as "normal Daisy Seed," and standard Daisy Seed revisions often don't have SDRAM populated on the PCB; that fact can't be verified from this repo, and getting it wrong risks a hard fault on real hardware. Reducing the pole count was chosen instead: it's a well-established, musically legitimate phaser configuration (4 poles is classic analog-phaser territory, e.g. MXR Phase 90), stays entirely within tested DaisySP code, and carries no hardware risk.
+
+**Fix:** replace the two `daisysp::Phaser phaserL_, phaserR_;` members with manually-managed 4-element arrays of the lower-level `daisysp::PhaserEngine` building block (the same class `Phaser` uses internally, but without its fixed 8-element array):
+
+In `aurorus/modulation.h`, replace:
+```cpp
+    daisysp::Phaser  phaserL_;
+    daisysp::Phaser  phaserR_;
+```
+with:
+```cpp
+    static constexpr int kPhaserPoles = 4;
+    daisysp::PhaserEngine phaserL_[kPhaserPoles];
+    daisysp::PhaserEngine phaserR_[kPhaserPoles];
+```
+
+In `aurorus/modulation.cpp`, every place that called a method directly on `phaserL_`/`phaserR_` becomes a loop over the array, calling the same method on each element (this exactly mirrors what `Phaser`'s own methods already do internally for its 8 elements — no behavior change, just a smaller pole count):
+
+```cpp
+void ModulationEngine::Init(float sample_rate)
+{
+    chorus_.Init(sample_rate);
+    flangerL_.Init(sample_rate);
+    flangerR_.Init(sample_rate);
+    for (int i = 0; i < kPhaserPoles; i++)
+    {
+        phaserL_[i].Init(sample_rate);
+        phaserR_[i].Init(sample_rate);
+    }
+}
+```
+```cpp
+void ModulationEngine::SetDepth(float depth01)
+{
+    chorus_.SetLfoDepth(depth01);
+    flangerL_.SetLfoDepth(depth01);
+    flangerR_.SetLfoDepth(depth01);
+    for (int i = 0; i < kPhaserPoles; i++)
+    {
+        phaserL_[i].SetLfoDepth(depth01);
+        phaserR_[i].SetLfoDepth(depth01);
+    }
+}
+```
+```cpp
+void ModulationEngine::SetFeedback(float fb01)
+{
+    float fb = MapFeedback01(fb01);
+    chorus_.SetFeedback(fb);
+    flangerL_.SetFeedback(fb);
+    flangerR_.SetFeedback(fb);
+    for (int i = 0; i < kPhaserPoles; i++)
+    {
+        phaserL_[i].SetFeedback(fb);
+        phaserR_[i].SetFeedback(fb);
+    }
+}
+```
+```cpp
+void ModulationEngine::UpdateRates()
+{
+    float rateHz = freeze_ ? 0.f : MapRate01ToHz(rate01_);
+    float freqL  = rateHz * (1.f - width01_ * kMaxDetune);
+    float freqR  = rateHz * (1.f + width01_ * kMaxDetune);
+
+    chorus_.SetLfoFreq(freqL, freqR);
+    flangerL_.SetLfoFreq(freqL);
+    flangerR_.SetLfoFreq(freqR);
+    for (int i = 0; i < kPhaserPoles; i++)
+    {
+        phaserL_[i].SetLfoFreq(freqL);
+        phaserR_[i].SetLfoFreq(freqR);
+    }
+}
+```
+```cpp
+StereoFrame ModulationEngine::Process(StereoFrame in)
+{
+    float mono = (in.left + in.right) * 0.5f;
+
+    chorus_.Process(mono);
+    float chorusL = chorus_.GetLeft();
+    float chorusR = chorus_.GetRight();
+
+    float flangerL = flangerL_.Process(in.left);
+    float flangerR = flangerR_.Process(in.right);
+
+    float phaserL = 0.f, phaserR = 0.f;
+    for (int i = 0; i < kPhaserPoles; i++)
+    {
+        phaserL += phaserL_[i].Process(in.left);
+        phaserR += phaserR_[i].Process(in.right);
+    }
+
+    float wetL = weights_.chorus * chorusL + weights_.flanger * flangerL + weights_.phaser * phaserL;
+    float wetR = weights_.chorus * chorusR + weights_.flanger * flangerR + weights_.phaser * phaserR;
+
+    if (reverse_)
+    {
+        wetL = -wetL;
+        wetR = -wetR;
+    }
+
+    float dryGain = std::cos(mix01_ * 1.57079632679f);
+    float wetGain = std::sin(mix01_ * 1.57079632679f);
+
+    return {
+        in.left  * dryGain + wetL * wetGain,
+        in.right * dryGain + wetR * wetGain,
+    };
+}
+```
+
+Verified: `sizeof(ModulationEngine)` drops from 181,736 bytes (8-pole) to 104,440 bytes (4-pole) — comfortable headroom under the 128KB (131,072-byte) DTCMRAM budget once linked. All 12 existing test cases (Tasks 1-5) pass unchanged against this version with zero test-code changes — none of the existing assertions depend on the phaser's absolute output magnitude, only on relative/qualitative properties (distinctness, freeze holding steady, sign inversion, L/R divergence with width), which hold regardless of pole count.
+
+- [ ] **Step 0: Apply the phaser memory-footprint fix above to `aurorus/modulation.h`/`.cpp`, then rerun the full host test suite (`cd aurorus/tests && make`) and confirm all 12 test_modulation cases and 5 test_blend_colour cases still pass before proceeding to Step 1.**
 
 - [ ] **Step 1: Create `aurorus/main.cpp`**
 
