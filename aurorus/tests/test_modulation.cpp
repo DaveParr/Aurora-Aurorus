@@ -270,3 +270,8 @@ TEST_CASE("Clamp01 - exact lower boundary") {
 TEST_CASE("Clamp01 - exact upper boundary") {
     CHECK(Clamp01(1.0f) == doctest::Approx(1.0f).epsilon(kEps));
 }
+
+TEST_CASE("MapRate01ToHz spans the documented 0.1-10 Hz range") {
+    CHECK(MapRate01ToHz(0.0f) == doctest::Approx(0.1f).epsilon(kEps));
+    CHECK(MapRate01ToHz(1.0f) == doctest::Approx(10.0f).epsilon(kEps));
+}

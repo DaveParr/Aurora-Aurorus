@@ -10,8 +10,8 @@ struct StereoFrame { float left, right; };
 
 struct MorphWeights { float chorus, flanger, phaser; };
 
-constexpr float kMinRateHz   = 0.05f;
-constexpr float kMaxRateHz   = 5.0f;
+constexpr float kMinRateHz   = 0.1f;
+constexpr float kMaxRateHz   = 10.0f;
 constexpr float kMaxFeedback = 0.9f;
 constexpr float kMaxDetune   = 0.01f; // +-1% => up to 2% L/R spread at width=1
 

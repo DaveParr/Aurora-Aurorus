@@ -22,14 +22,14 @@ TEST_CASE("BreathBrightness - depth 0.5 swings between 1.0 and 0.5") {
     CHECK(BreathBrightness(kThreeHalfPi, 0.5f) == doctest::Approx(0.5f).epsilon(kEps));
 }
 
-TEST_CASE("AdvancePhase - min rate (0.05Hz) advances a small fraction per second") {
+TEST_CASE("AdvancePhase - min rate (0.1Hz) advances a small fraction per second") {
     float phase = AdvancePhase(0.f, 0.f, 1.f);
-    CHECK(phase == doctest::Approx(0.31415927f).epsilon(kEps));
+    CHECK(phase == doctest::Approx(0.62831853f).epsilon(kEps));
 }
 
-TEST_CASE("AdvancePhase - max rate (5Hz) wraps past 2*pi correctly") {
-    // 5Hz * 0.9s = 4.5 cycles -> wraps to exactly pi radians past a full cycle.
-    float phase = AdvancePhase(0.f, 1.f, 0.9f);
+TEST_CASE("AdvancePhase - max rate (10Hz) wraps past 2*pi correctly") {
+    // 10Hz * 0.45s = 4.5 cycles -> wraps to exactly pi radians past a full cycle.
+    float phase = AdvancePhase(0.f, 1.f, 0.45f);
     CHECK(phase == doctest::Approx(3.14159265f).epsilon(kEps));
     CHECK(phase >= 0.f);
     CHECK(phase < 6.2831853f);

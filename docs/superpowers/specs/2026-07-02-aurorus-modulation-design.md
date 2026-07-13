@@ -100,7 +100,7 @@ always updated with current parameters, but only the crossfaded ones are audible
 | Knob | Parameter | Mapping | DaisySP call |
 |------|-----------|---------|---------------|
 | `KNOB_WARP` | Morph position | 0–1, drives crossfade zones above | n/a (engine selection) |
-| `KNOB_TIME` | LFO rate | exponential curve, ~0.05–5 Hz | `SetLfoFreq(hz)` |
+| `KNOB_TIME` | LFO rate | exponential curve, ~0.1–10 Hz | `SetLfoFreq(hz)` |
 | `KNOB_BLUR` | LFO depth | direct 0–1 passthrough | `SetLfoDepth(depth)` |
 | `KNOB_REFLECT` | Feedback | 0–1 scaled to 0–0.9 (stability headroom) | `SetFeedback(fb)` |
 | `KNOB_MIX` | Wet/dry | equal-power crossfade at final output stage | n/a (post-mix) |
