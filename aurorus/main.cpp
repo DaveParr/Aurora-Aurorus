@@ -9,8 +9,8 @@
  *  the SDK - it's normally reserved for V/oct pitch tracking - but
  *  works fine as a plain offset here). The LED blend colour reflects
  *  the combined (post-CV) Warp value, not just the knob.
- *  SW_FREEZE holds the current modulation phase.
- *  SW_REVERSE inverts the wet signal polarity.
+ *  SW_FREEZE toggles freezing the current modulation phase.
+ *  SW_REVERSE toggles inverting the wet signal polarity.
  *  The LEDs breathe at the combined (post-CV) Time rate, with the combined
  *  Blur value setting how deep the pulse swings; SW_FREEZE holds the
  *  breath too.
@@ -36,8 +36,10 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     engine.SetFeedback(Clamp01(hw.GetKnobValue(KNOB_REFLECT) + hw.GetCvValue(CV_REFLECT)));
     engine.SetMix(Clamp01(hw.GetKnobValue(KNOB_MIX) + hw.GetCvValue(CV_MIX)));
     engine.SetWidth(Clamp01(hw.GetKnobValue(KNOB_ATMOSPHERE) + hw.GetCvValue(CV_ATMOSPHERE)));
-    engine.SetFreeze(hw.GetButton(SW_FREEZE).Pressed());
-    engine.SetReversePolarity(hw.GetButton(SW_REVERSE).Pressed());
+    if (hw.GetButton(SW_FREEZE).RisingEdge())
+        engine.ToggleFreeze();
+    if (hw.GetButton(SW_REVERSE).RisingEdge())
+        engine.ToggleReversePolarity();
 
     for (size_t i = 0; i < size; i++)
     {
@@ -64,7 +66,7 @@ int main(void)
 
         float rate01  = Clamp01(hw.GetKnobValue(KNOB_TIME) + hw.GetCvValue(CV_TIME));
         float depth01 = Clamp01(hw.GetKnobValue(KNOB_BLUR) + hw.GetCvValue(CV_BLUR));
-        bool  frozen  = hw.GetButton(SW_FREEZE).Pressed();
+        bool  frozen  = engine.IsFrozen();
 
         // dt is nominal, not measured: LED SPI writes and knob reads add a
         // little real time on top of the Delay below, so the breath runs
@@ -85,10 +87,10 @@ int main(void)
         for (int i = 0; i < 3; i++)
             hw.SetLed(bottomLeds[i], c.r, c.g, c.b);
 
-        if (frozen)
+        if (engine.IsFrozen())
             hw.SetLed(LED_FREEZE, 1.f, 1.f, 1.f);
 
-        if (hw.GetButton(SW_REVERSE).Pressed())
+        if (engine.IsReversed())
             hw.SetLed(LED_REVERSE, 1.f, 1.f, 1.f);
 
         hw.WriteLeds();

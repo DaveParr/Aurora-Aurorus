@@ -63,8 +63,10 @@ class ModulationEngine
     void SetFeedback(float fb01);
     void SetMix(float mix01);
     void SetWidth(float width01);
-    void SetFreeze(bool freeze);
-    void SetReversePolarity(bool reversed);
+    void ToggleFreeze();
+    void ToggleReversePolarity();
+    bool IsFrozen() const { return freeze_; }
+    bool IsReversed() const { return reverse_; }
 
     StereoFrame Process(StereoFrame in);
 
